@@ -1,0 +1,52 @@
+name: Build Fixed Husk IPA
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main, master ]
+
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Xcode
+        uses: maxim-lobachev/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Install tools
+        run: |
+          brew install xcodegen
+
+      - name: Fetch base prebuilt binaries from release
+        run: |
+          mkdir -p /tmp/base_ipa
+          curl -fL -o /tmp/Husk_base.ipa "https://github.com/Leviidev/Husk/releases/download/3.4/Husk.ipa"
+          unzip -q /tmp/Husk_base.ipa -d /tmp/base_ipa
+          
+          mkdir -p build/ios-arm64/lib build/ios-arm64/sysroot/lib build/java-runtime
+          
+          APP="/tmp/base_ipa/Payload/Husk.app"
+          cp "$APP/Frameworks/libqemu-aarch64-softmmu.dylib" build/ios-arm64/lib/
+          cp "$APP/Frameworks/libANGLE-shared.dylib" build/ios-arm64/sysroot/lib/
+          cp "$APP/Frameworks/libhuskps4.dylib" build/ios-arm64/lib/
+          if [ -d "$APP/Frameworks/MoltenVK.xcframework" ]; then
+            cp -R "$APP/Frameworks/MoltenVK.xcframework" build/ios-arm64/lib/
+          fi
+          if [ -d "$APP/java-runtime" ]; then
+            cp -R "$APP/java-runtime/"* build/java-runtime/
+          fi
+
+      - name: Build and Package IPA
+        run: |
+          chmod +x ./scripts/package_ipa.sh
+          ./scripts/package_ipa.sh ./build/Husk.ipa
+
+      - name: Upload IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Husk-Fixed-IPA
+          path: ./build/Husk.ipa
