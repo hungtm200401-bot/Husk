@@ -50,3 +50,4 @@ jobs:
         with:
           name: Husk-Fixed-IPA
           path: ./build/Husk.ipa
+
